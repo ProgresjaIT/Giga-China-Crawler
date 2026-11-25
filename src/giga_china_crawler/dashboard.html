@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Giga China Crawler</title>
+<style>
+  body { font: 15px/1.45 system-ui, sans-serif; margin: 0 auto; max-width: 1200px; padding: 24px; color: #1a1a1a; }
+  h1 { font-size: 22px; margin: 0 0 16px; }
+  h2 { font-size: 17px; margin: 28px 0 8px; }
+  form { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; padding: 16px; border: 1px solid #ccc; border-radius: 8px; }
+  label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
+  input[type=text] { width: 360px; max-width: 100%; padding: 8px; font: inherit; }
+  button { padding: 9px 16px; font: inherit; font-weight: 600; cursor: pointer; border-radius: 6px; border: 1px solid #555; background: #fff; }
+  button.primary { background: #b3261e; color: #fff; border-color: #b3261e; }
+  button:focus-visible, input:focus-visible { outline: 3px solid #1a5fb4; outline-offset: 2px; }
+  #preview { max-height: 80px; display: none; border-radius: 4px; }
+  #status { margin-top: 16px; white-space: pre-line; color: #444; }
+  .error { color: #b3261e; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #e3e3e3; vertical-align: top; }
+  th { background: #f4f4f4; }
+  td img { width: 56px; height: 56px; object-fit: cover; }
+  td.num { text-align: right; white-space: nowrap; }
+  #lessons li { margin-bottom: 4px; }
+  #history button { margin: 0 6px 6px 0; }
+</style>
+</head>
+<body>
+<h1>Giga China Crawler</h1>
+<form id="form">
+  <label>Tytuł towaru
+    <input type="text" id="title" placeholder="np. taśma LED 5050 RGB">
+  </label>
+  <label>Zdjęcie (opcjonalnie)
+    <input type="file" id="image" accept="image/jpeg,image/png,image/webp">
+  </label>
+  <img id="preview" alt="Podgląd wybranego zdjęcia">
+  <button class="primary" type="submit">Szukaj</button>
+</form>
+<div id="status" role="status" aria-live="polite"></div>
+<div id="results"></div>
+<h2>Ostatnie wyszukiwania</h2>
+<div id="history"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+let timer = null;
+
+$("image").addEventListener("change", () => {
+  const file = $("image").files[0];
+  $("preview").style.display = file ? "block" : "none";
+  if (file) $("preview").src = URL.createObjectURL(file);
+});
+
+$("form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const body = { title: $("title").value };
+  const file = $("image").files[0];
+  if (file) {
+    body.image_type = file.type;
+    body.image_base64 = await new Promise(done => {
+      const reader = new FileReader();
+      reader.onload = () => done(reader.result.split(",")[1]);
+      reader.readAsDataURL(file);
+    });
+  }
+  const response = await fetch("/api/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = await response.json();
+  if (data.error) { $("status").innerHTML = `<span class="error">${esc(data.error)}</span>`; return; }
+  show(data.run_id);
+});
+
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+const pln = v => v == null ? "—" : v.toLocaleString("pl-PL", { maximumFractionDigits: v < 1 ? 4 : 2 }) + " zł";
+
+function table(title, offers) {
+  if (!offers.length) return `<h2>${title}</h2><p>Brak ofert.</p>`;
+  const rows = offers.map(o => `<tr>
+    <td>${o.image_url ? `<img src="${esc(o.image_url)}" alt="">` : ""}</td>
+    <td><a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(o.title)}</a><br><small>${esc(o.source)} · dopasowanie ${o.match}</small></td>
+    <td>${esc(o.supplier)}<br><small>${esc(o.supplier_years)}</small></td>
+    <td class="num">${pln(o.unit_price_pln)}${o.qty_for_unit_price ? `<br><small>od ${o.qty_for_unit_price}</small>` : ""}</td>
+    <td class="num">${o.moq ?? "—"} ${esc(o.moq_unit ?? "")}</td>
+    <td class="num">${pln(o.order_value_pln)}</td>
+  </tr>`).join("");
+  return `<h2>${title}</h2><table><thead><tr><th></th><th>Oferta</th><th>Dostawca</th>
+    <th>Najniższa cena / szt.</th><th>MOQ</th><th>Pierwsze zamówienie</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+async function show(runId) {
+  clearTimeout(timer);
+  const run = await (await fetch(`/api/runs/${runId}`)).json();
+  const errors = (run.errors || []).map(e => `<div class="error">${esc(e)}</div>`).join("");
+  $("status").innerHTML = `<strong>${esc(run.title || "(opis ze zdjęcia w trakcie)")}</strong> · ${esc(run.status)}\n`
+    + esc((run.progress || []).slice(-4).join("\n")) + errors;
+  if (run.status === "running") { timer = setTimeout(() => show(runId), 2000); $("results").innerHTML = ""; return; }
+  const lists = run.lists || { cheapest: [], lowest_moq: [], lowest_order_value: [] };
+  const lessons = (run.lessons || []).map(l => `<li>${esc(l)}</li>`).join("");
+  $("results").innerHTML = `
+    <p><button id="super" ${run.super ? "disabled" : ""}>${run.super ? "Zapisano jako super wynik" : "Super wynik. Zapisz w pamięci."}</button></p>
+    ${lessons ? `<h2>Wnioski</h2><ul id="lessons">${lessons}</ul>` : ""}
+    ${table("Najniższa cena za sztukę", lists.cheapest)}
+    ${table("Najniższe MOQ", lists.lowest_moq)}
+    ${table("Najniższy koszt pierwszego zamówienia", lists.lowest_order_value)}`;
+  $("super").addEventListener("click", async () => {
+    await fetch(`/api/runs/${runId}/super`, { method: "POST" });
+    show(runId);
+  });
+  loadHistory();
+}
+
+async function loadHistory() {
+  const runs = await (await fetch("/api/runs")).json();
+  $("history").innerHTML = runs.map(r => `<button data-id="${esc(r.id)}">${r.super ? "[super] " : ""}${esc(r.title || r.id)} (${esc(r.status)})</button>`).join("") || "<p>Jeszcze nic.</p>";
+  $("history").querySelectorAll("button").forEach(b => b.addEventListener("click", () => show(b.dataset.id)));
+}
+loadHistory();
+</script>
+</body>
+</html>
