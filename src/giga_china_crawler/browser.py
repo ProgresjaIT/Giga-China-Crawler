@@ -28,7 +28,7 @@ async def session():
 
 
 async def wait_for(page, selector: str, notify) -> bool:
-    """Czeka na wyniki. Gdy serwis pokaże test na człowieka, prosi człowieka i czeka (docs/adr/0002)."""
+    """Czeka na wyniki. Gdy serwis pokaże test na człowieka, uruchamia kaskadę solverów."""
     asked = False
     for _ in range(HUMAN_WAIT_SECONDS * 2):
         if await page.locator(selector).count():
@@ -40,5 +40,9 @@ async def wait_for(page, selector: str, notify) -> bool:
                 notify("Serwis pokazał test na człowieka. Rozwiąż go w oknie przeglądarki.")
                 await page.bring_to_front()
                 asked = True
+                from giga_china_crawler import captcha
+                result = await captcha.solve(page, notify)
+                status = result["status"] + (f" ({result['solver']})" if result["solver"] else "")
+                notify(f"Kaskada CAPTCHA: {status}")
         await asyncio.sleep(0.5)
     return False

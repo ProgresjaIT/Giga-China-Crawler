@@ -1,5 +1,17 @@
 .env
+.env.*
+!.env.example
 .venv/
 __pycache__/
 .local/
 memory.json
+logs/
+
+# Local credentials and browser session data
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+cookies.json
+storageState.json

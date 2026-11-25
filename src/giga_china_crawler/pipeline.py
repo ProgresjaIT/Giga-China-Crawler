@@ -6,10 +6,9 @@ from datetime import datetime, timezone
 
 from giga_china_crawler import ai, browser, memory
 from giga_china_crawler.ranking import price_offer, three_lists
-from giga_china_crawler.sources import alibaba
+from giga_china_crawler.sources import alibaba, made_in_china
 
-# shortcut: na razie tylko Alibaba.com; 1688, Made-in-China, Global Sources i DHgate dochodzą po kolei.
-SOURCES = [alibaba]
+SOURCES = [alibaba, made_in_china]
 RUNS: dict[str, dict] = {}
 _tasks: set[asyncio.Task] = set()
 

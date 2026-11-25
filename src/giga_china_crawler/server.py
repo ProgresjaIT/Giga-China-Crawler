@@ -51,6 +51,22 @@ async def get_results(run_id: str) -> dict:
     return run or {"error": "Nie ma wyszukiwania o takim run_id."}
 
 
+@mcp.tool()
+async def solve_captcha(url: str, challenge_type: str = "") -> dict:
+    """Uruchom kaskadę solverów CAPTCHA na stronie. Zwraca status, użyty solver i próby."""
+    from giga_china_crawler import browser, captcha
+    if challenge_type and challenge_type not in captcha.ALL_TYPES:
+        raise ValueError(f"Typ challenge'u musi być jednym z: {', '.join(captcha.ALL_TYPES)}")
+    result = {}
+
+    async def action(page):
+        result.update(await captcha.solve(page, forced_type=challenge_type or None))
+
+    async with browser.session() as session:
+        await session.fetch(url, page_action=action, google_search=False, timeout=60000)
+    return result or {"error": "Nie udało się otworzyć strony."}
+
+
 @mcp.custom_route("/", methods=["GET"])
 async def dashboard(request: Request) -> HTMLResponse:
     return HTMLResponse((Path(__file__).parent / "dashboard.html").read_text(encoding="utf-8"))
