@@ -6,7 +6,9 @@ from pathlib import Path
 
 from scrapling.fetchers import AsyncStealthySession
 
-PROFILE = Path(".local/browser-profile")
+from giga_china_crawler import DATA_DIR
+
+PROFILE = DATA_DIR / ".local/browser-profile"
 CHALLENGE_WORDS = ("slide to verify", "drag the slider", "captcha", "przesuń", "weryfikacja", "unusual traffic")
 HUMAN_WAIT_SECONDS = 300
 _lock = asyncio.Lock()

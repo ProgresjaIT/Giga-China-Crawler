@@ -5,7 +5,9 @@ import os
 import threading
 from pathlib import Path
 
-PATH = Path(os.environ.get("MEMORY_PATH", "memory.json"))
+from giga_china_crawler import DATA_DIR
+
+PATH = Path(os.environ.get("MEMORY_PATH") or DATA_DIR / "memory.json")
 _lock = threading.Lock()
 
 

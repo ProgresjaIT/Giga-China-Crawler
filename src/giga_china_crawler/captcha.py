@@ -6,6 +6,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
+from giga_china_crawler import DATA_DIR
 from giga_china_crawler.browser import CHALLENGE_WORDS
 from giga_china_crawler.solvers import ADAPTERS
 
@@ -36,7 +37,7 @@ REPOS = {
     "human": "człowiek",
 }
 SITEKEY = re.compile(r'(?:data-sitekey|sitekey)["\']?\s*[:=]\s*["\']([^"\']+)', re.I)
-LOG_PATH = Path("logs/captcha_wyniki.json")
+LOG_PATH = DATA_DIR / "logs/captcha_wyniki.json"
 
 
 def record(found: dict, result: dict) -> None:
