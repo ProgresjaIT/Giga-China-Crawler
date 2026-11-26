@@ -47,6 +47,8 @@ async def title_from_image(image: tuple[bytes, str], rejected: list[str]) -> str
 
 
 async def search_terms(title: str, memory: list[dict]) -> list[str]:
+    if not os.environ.get("OPENAI_API_KEY"):
+        return [title]  # shortcut: bez klucza szukamy dokładnie wpisanym tytułem, więc najlepiej po angielsku
     text = await _ask(
         "Szukamy chińskich dostawców tego towaru: " + json.dumps(title, ensure_ascii=False) + ".\n"
         "Zaproponuj 3 Search Termy po angielsku do wyszukiwarki Alibaba.com: nazwy handlowe, pod którymi "
@@ -64,6 +66,8 @@ async def search_terms(title: str, memory: list[dict]) -> list[str]:
 async def lessons(run: dict, memory: list[dict]) -> list[str]:
     summary = {k: run.get(k) for k in ("title", "search_terms", "per_term", "per_source", "matched_count",
                                        "best_unit_price_pln", "lowest_moq", "errors")}
+    if not os.environ.get("OPENAI_API_KEY"):
+        return []
     text = await _ask(
         "Oto wynik wyszukiwania chińskich dostawców:\n" + json.dumps(summary, ensure_ascii=False) +
         "\nOto wcześniejsze wyszukiwania:\n" + json.dumps(memory, ensure_ascii=False) +
@@ -95,6 +99,8 @@ async def title_fits_image(title: str, image: tuple[bytes, str]) -> float:
 
 
 async def match(title: str, image: tuple[bytes, str] | None, offer: dict) -> float:
+    if not (os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")):
+        return 1.0  # shortcut: bez klucza Gemini każda oferta przechodzi, wyniki mogą zawierać śmieci
     blocks = [{"type": "text", "text": f"SZUKANY TOWAR\nTytuł: {title}\n"}]
     if image:
         blocks += [{"type": "text", "text": "Zdjęcie szukanego towaru:\n"}, _image_block(image)]

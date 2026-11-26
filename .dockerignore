@@ -1,0 +1,11 @@
+.git
+.venv
+.env
+.local
+.claude
+.opencode
+logs
+memory.json
+vendor
+notatki
+**/__pycache__

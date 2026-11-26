@@ -1,6 +1,9 @@
-"""Jedna widoczna przeglądarka (Scrapling + Patchright, systemowy Chrome) z trwałym profilem."""
+"""Jedna przeglądarka (Scrapling + Patchright) z trwałym profilem: widoczny Chrome na komputerze,
+Chromium bez okna w kontenerze (serwer bez ekranu)."""
 
 import asyncio
+import os
+import shutil
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -22,9 +25,14 @@ async def session():
     async with _lock:
         if _session is None:
             PROFILE.mkdir(parents=True, exist_ok=True, mode=0o700)
-            # real_chrome: Chromium z Patchright potrafi paść przy starcie w profilu z MCP (stary projekt).
-            _session = AsyncStealthySession(headless=False, real_chrome=True, user_data_dir=str(PROFILE),
-                                            extra_flags=["--window-size=1280,900", "--disable-notifications"])
+            # real_chrome: Chromium z Patchright potrafi paść przy starcie w profilu z MCP (stary projekt),
+            # więc systemowego Chrome używamy, gdy jest; w obrazie Dockera jest tylko Chromium.
+            _session = AsyncStealthySession(headless=not os.environ.get("DISPLAY"),
+                                            real_chrome=shutil.which("google-chrome") is not None,
+                                            user_data_dir=str(PROFILE),
+                                            # /dev/shm w Dockerze ma 64 MB; bez tej flagi Chromium pada na dużych stronach
+                                            extra_flags=["--window-size=1280,900", "--disable-notifications",
+                                                         "--disable-dev-shm-usage"])
             await _session.start()
         yield _session
 
