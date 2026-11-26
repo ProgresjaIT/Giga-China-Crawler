@@ -15,7 +15,7 @@ uv run giga-china-crawler
 
 Program otwiera widoczne okno Chrome (wymagany zainstalowany Google Chrome). Gdy serwis pokaże test na człowieka, w dashboardzie pojawi się prośba o rozwiązanie go w tym oknie; program czeka do 5 minut ([ADR 0002](docs/adr/0002-czlowiek-rozwiazuje-testy-na-czlowieka.md)). Profil przeglądarki z sesją jest w `.local/browser-profile`, pamięć wyszukiwań w `memory.json`.
 
-Żeby inni w sieci firmowej mogli się podłączyć, ustaw w `.env` `HOST=0.0.0.0`. Nie wystawiaj serwera poza sieć firmową: nie ma logowania.
+Serwer domyślnie słucha na `0.0.0.0` (wymaga tego kontener w agent-dashboard), więc inni w tej samej sieci mogą się podłączyć. Żeby dopuścić tylko ten komputer, ustaw w `.env` `HOST=127.0.0.1`. Nie wystawiaj serwera poza sieć firmową: nie ma logowania.
 
 ## Podłączenie w kliencie MCP
 

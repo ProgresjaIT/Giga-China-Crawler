@@ -107,7 +107,7 @@ async def api_super(request: Request) -> JSONResponse:
 
 def main() -> None:
     load_dotenv()
-    mcp.run("streamable-http", host=os.environ.get("HOST", "127.0.0.1"), port=int(os.environ.get("PORT", "8000")))
+    mcp.run("streamable-http", host=os.environ.get("HOST", "0.0.0.0"), port=int(os.environ.get("PORT", "8000")))
 
 
 if __name__ == "__main__":
