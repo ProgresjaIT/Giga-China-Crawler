@@ -16,13 +16,14 @@ _decisions_limit = asyncio.Semaphore(10)
 
 def openai_client() -> AsyncOpenAI:
     global _openai
-    _openai = _openai or AsyncOpenAI()
+    # limit czasu: bez niego zawieszone zapytanie trzyma wyszukiwanie do ~30 min bez żadnego błędu
+    _openai = _openai or AsyncOpenAI(timeout=60, max_retries=1)
     return _openai
 
 
 def gemini_client() -> genai.Client:
     global _gemini
-    _gemini = _gemini or genai.Client(http_options={"api_version": "v1beta"})
+    _gemini = _gemini or genai.Client(http_options={"api_version": "v1beta", "timeout": 60_000})
     return _gemini
 
 

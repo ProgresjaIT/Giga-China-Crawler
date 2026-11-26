@@ -1,6 +1,8 @@
 """Jeden Search Run: tytuł -> Search Termy -> Sources -> Match -> szczegóły -> trzy listy -> wnioski -> pamięć."""
 
 import asyncio
+import sys
+import traceback
 import uuid
 from datetime import datetime, timezone
 
@@ -32,11 +34,15 @@ def get(run_id: str) -> dict | None:
 async def _run(run: dict, image) -> None:
     def note(text: str):
         run["progress"].append(text)
+        _log(run, text)
+
+    _log(run, f"start: tytuł={run['title']!r}, zdjęcie={bool(image)}")
 
     try:
         if not run["title"]:
             run["title"] = await _title_from_image(image, note)
         history = memory.recent()
+        note("Pytam OpenAI o Search Termy")
         run["search_terms"] = await ai.search_terms(run["title"], history)
         note(f"Search Termy: {', '.join(run['search_terms'])}")
 
@@ -106,9 +112,18 @@ async def _run(run: dict, image) -> None:
     except Exception as exc:
         run["status"] = "error"
         run["errors"].append(f"{type(exc).__name__}: {exc}")
+        _log(run, traceback.format_exc())
     finally:
         run["finished_at"] = datetime.now(timezone.utc).isoformat()
+        for error in run["errors"]:
+            _log(run, f"błąd: {error}")
+        _log(run, f"koniec: status={run['status']}")
         memory.save_run(run)
+
+
+def _log(run: dict, text: str) -> None:
+    # stderr trafia do logów kontenera (sekcja „Logi” w agent-dashboard)
+    print(f"[{datetime.now(timezone.utc):%H:%M:%S}] run {run['id']}: {text}", file=sys.stderr, flush=True)
 
 
 async def _title_from_image(image, note) -> str:
