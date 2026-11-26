@@ -12,29 +12,12 @@ from giga_china_crawler.solvers import ADAPTERS
 
 ALL_TYPES = ("ocr", "slider", "token", "behaviour")
 SOLVERS = (
-    {"name": "profile", "types": ALL_TYPES, "env": None},
-    {"name": "alibaba-slider", "types": ("slider",), "env": None},
-    {"name": "ddddocr", "types": ("ocr", "slider"), "env": None},
-    {"name": "geetest-solver", "types": ("slider",), "env": None},
-    {"name": "cf-solver", "types": ALL_TYPES, "env": "CF_SOLVER_URL"},
-    {"name": "cipher-solver", "types": ("token", "behaviour"), "env": "CIPHER_SOLVER_URL"},
-    {"name": "nopecha", "types": ("token", "slider"), "env": "NOPECHA_API_KEY"},
-    {"name": "extension-solver", "types": ("token", "ocr"), "env": "EXTENSION_SOLVER_URL"},
-    {"name": "2captcha", "types": ("ocr", "slider", "token"), "env": "TWO_CAPTCHA_API_KEY"},
-    {"name": "human", "types": ALL_TYPES, "env": None},
+    # Wszystkie typy: klasyfikacja bywa myląca, a gest i tak sprawdza, czy suwak jest widoczny.
+    {"name": "alibaba-slider", "types": ALL_TYPES, "env": None},
 )
 SKILL = "captcha-cascade"
 REPOS = {
-    "profile": "Giga-China-Crawler/.local/browser-profile",
     "alibaba-slider": "MCP_Alibaba/src/alibaba_mcp/browser/actions.py",
-    "ddddocr": "sml2h3/ddddocr",
-    "geetest-solver": "Evil-Bane/Geetest-Solver",
-    "cf-solver": "VeyraAgent/cf-solver",
-    "cipher-solver": "cipher-x-sudo/captcha-solver",
-    "nopecha": "NopeCHALLC/nopecha-python",
-    "extension-solver": "icemellow-me/captcha-solver-extension",
-    "2captcha": "2captcha/2captcha-python",
-    "human": "człowiek",
 }
 SITEKEY = re.compile(r'(?:data-sitekey|sitekey)["\']?\s*[:=]\s*["\']([^"\']+)', re.I)
 LOG_PATH = DATA_DIR / "logs/captcha_wyniki.json"
@@ -72,20 +55,8 @@ def record(found: dict, result: dict) -> None:
 
 
 def candidates(kind: str, env: dict | None = None) -> list[dict]:
-    """Solverzy dla typu challenge'u: lokalni, skonfigurowani, reszta, człowiek."""
-    env = os.environ if env is None else env
-    matches = [s for s in SOLVERS if kind in s["types"]]
-
-    def rank(spec):
-        name = spec["name"]
-        if name == "profile":
-            return (0, 0)
-        if name == "human":
-            return (3, 0)
-        configured = spec["env"] is None or bool(env.get(spec["env"]))
-        return (1 if configured else 2, SOLVERS.index(spec))
-
-    return sorted(matches, key=rank)
+    """Solverzy dla typu challenge'u, w kolejności z SOLVERS."""
+    return [s for s in SOLVERS if kind in s["types"]]
 
 
 async def classify(page) -> dict:
@@ -120,17 +91,6 @@ async def _settle(page) -> bool:
 
 async def _attempt(spec: dict, found: dict, env: dict, page, notify) -> dict:
     name = spec["name"]
-    if name == "profile":
-        await page.reload()
-        solved = await _settle(page)
-        return {"solver": name, "solved": solved, "detail": "ponowny wczyt profilu"}
-    if name == "human":
-        notify("Rozwiąż test w oknie przeglądarki.")
-        await page.bring_to_front()
-        for _ in range(60):
-            if await _settle(page):
-                return {"solver": name, "solved": True, "detail": "rozwiązał człowiek"}
-        return {"solver": name, "solved": False, "detail": "brak rozwiązania w 60 s"}
     adapter = ADAPTERS.get(name)
     if adapter is None:
         return {"solver": name, "solved": False, "detail": "brak adaptera"}

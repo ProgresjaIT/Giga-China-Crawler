@@ -46,17 +46,9 @@ class FakePage:
 
 
 class CaptchaTests(unittest.TestCase):
-    def test_candidates_without_endpoints(self):
-        names = [s["name"] for s in captcha.candidates("behaviour", {})]
-        self.assertEqual(names[0], "profile")
-        self.assertEqual(names[-1], "human")
-        self.assertIn("cf-solver", names)
-
-    def test_candidates_puts_configured_first(self):
-        env = {"CF_SOLVER_URL": "http://solver"}
-        names = [s["name"] for s in captcha.candidates("slider", env)]
-        self.assertEqual(names[:5], ["profile", "alibaba-slider", "ddddocr", "geetest-solver", "cf-solver"])
-        self.assertEqual(names[-1], "human")
+    def test_candidates_only_slider(self):
+        for kind in captcha.ALL_TYPES:
+            self.assertEqual([s["name"] for s in captcha.candidates(kind, {})], ["alibaba-slider"])
 
     def test_classify_slider(self):
         page = FakePage("slide to verify", "<html>geetest slider</html>")
@@ -78,39 +70,38 @@ class CaptchaTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, patch.object(captcha, "LOG_PATH", Path(tmp) / "wyniki.json"):
             result = asyncio.run(captcha.solve(FakePage(), max_solvers=1, attempts=1, env={}))
             self.assertEqual(result["status"], "escalate")
-            self.assertEqual(result["attempts"][0]["solver"], "profile")
+            self.assertEqual(result["attempts"][0]["solver"], "alibaba-slider")
             self.assertFalse(result["attempts"][0]["solved"])
             entries = json.loads(captcha.LOG_PATH.read_text(encoding="utf-8"))
             self.assertEqual(len(entries), 1)
             self.assertEqual(entries[0]["url"], FakePage.url)
             self.assertEqual(entries[0]["status"], "escalate")
-            self.assertEqual(entries[0]["attempted"], ["profile"])
+            self.assertEqual(entries[0]["attempted"], ["alibaba-slider"])
             self.assertEqual(entries[0]["skill"], "captcha-cascade")
             self.assertFalse(entries[0]["success"])
             self.assertIsNone(entries[0]["repo"])
-            self.assertEqual(entries[0]["attempted_repos"], ["Giga-China-Crawler/.local/browser-profile"])
+            self.assertEqual(entries[0]["attempted_repos"], ["MCP_Alibaba/src/alibaba_mcp/browser/actions.py"])
 
     def test_vendored_adapters_are_registered(self):
         for spec in captcha.SOLVERS:
-            if spec["name"] not in ("profile", "human"):
-                self.assertIn(spec["name"], captcha.ADAPTERS)
-                self.assertIn(spec["name"], captcha.REPOS)
+            self.assertIn(spec["name"], captcha.ADAPTERS)
+            self.assertIn(spec["name"], captcha.REPOS)
         self.assertNotIn("captchamind", [s["name"] for s in captcha.SOLVERS])
 
     def test_record_deduplicates(self):
         found = {"url": "https://example.com/a", "type": "slider", "sitekey": None}
         with tempfile.TemporaryDirectory() as tmp, patch.object(captcha, "LOG_PATH", Path(tmp) / "wyniki.json"):
             captcha.record(found, {"status": "escalate", "solver": None, "attempts": []})
-            captcha.record(found, {"status": "solved", "solver": "profile",
-                                   "attempts": [{"solver": "profile", "detail": "ponowny wczyt profilu"}]})
+            captcha.record(found, {"status": "solved", "solver": "alibaba-slider",
+                                   "attempts": [{"solver": "alibaba-slider", "detail": "gest suwaka Alibaba"}]})
             entries = json.loads(captcha.LOG_PATH.read_text(encoding="utf-8"))
             self.assertEqual(len(entries), 1)
             self.assertEqual(entries[0]["count"], 2)
-            self.assertEqual(entries[0]["solver"], "profile")
+            self.assertEqual(entries[0]["solver"], "alibaba-slider")
             self.assertEqual(entries[0]["status"], "solved")
-            self.assertEqual(entries[0]["attempted"], ["profile"])
+            self.assertEqual(entries[0]["attempted"], ["alibaba-slider"])
             self.assertEqual(entries[0]["skill"], "captcha-cascade")
-            self.assertEqual(entries[0]["repo"], "Giga-China-Crawler/.local/browser-profile")
+            self.assertEqual(entries[0]["repo"], "MCP_Alibaba/src/alibaba_mcp/browser/actions.py")
             self.assertTrue(entries[0]["success"])
 
 
